@@ -1,3 +1,4 @@
+import { assertPublicHttpsOrigin } from '@/lib/net/safe-url'
 import { PLATFORMS } from './registry'
 import type {
   PlatformAdapter,
@@ -82,6 +83,8 @@ const mastodon: PlatformAdapter = {
   async publish({ connection, caption, media }: PublishInput): Promise<PublishResult> {
     const instance = connection.metadata?.instance as string
     if (!instance) throw new Error('Missing Mastodon instance')
+    // Re-check at publish time: DNS for the instance may have changed.
+    await assertPublicHttpsOrigin(instance)
     const token = connection.accessToken
 
     const mediaIds: string[] = []

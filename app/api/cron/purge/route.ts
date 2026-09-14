@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient()
 
+  // 0. AI generations follow the same 7-day window (images + prompts).
+  const generationsPurged = await purgeGenerations(supabase)
+
   // 1. Find expired posts.
   const { data: expired, error } = await supabase
     .from('posts')
@@ -23,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
   const postIds = (expired ?? []).map((p) => p.id)
   if (postIds.length === 0) {
-    return NextResponse.json({ purged: 0 })
+    return NextResponse.json({ purged: 0, generationsPurged })
   }
 
   // Note: publish_log is written at publish time and has no FK to posts, so the
@@ -48,5 +51,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: delErr.message }, { status: 500 })
   }
 
-  return NextResponse.json({ purged: postIds.length, storageRemoved: paths.length })
+  return NextResponse.json({
+    purged: postIds.length,
+    storageRemoved: paths.length,
+    generationsPurged,
+  })
+}
+
+async function purgeGenerations(
+  supabase: ReturnType<typeof createAdminClient>
+): Promise<number> {
+  const { data: expired } = await supabase
+    .from('generations')
+    .select('id, storage_path')
+    .lt('expires_at', new Date().toISOString())
+  const rows = expired ?? []
+  if (rows.length === 0) return 0
+
+  const paths = rows
+    .map((r) => r.storage_path)
+    .filter((p): p is string => typeof p === 'string' && p.length > 0)
+  if (paths.length > 0) {
+    await supabase.storage.from('media').remove(paths)
+  }
+  await supabase
+    .from('generations')
+    .delete()
+    .in('id', rows.map((r) => r.id))
+  return rows.length
 }

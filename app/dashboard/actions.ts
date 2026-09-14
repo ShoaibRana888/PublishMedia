@@ -1,7 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { decryptToken } from '@/lib/crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { decryptToken, socialTokenAad } from '@/lib/crypto'
 import { getAdapter } from '@/lib/platforms/adapters'
 import { checkFit } from '@/lib/platforms/fit'
 import { isPlatformId } from '@/lib/platforms/registry'
@@ -70,11 +71,13 @@ export async function publishPost(
     assets: mediaWithUrls.map((m) => m.asset),
   }
 
-  // Load the selected connections.
+  // Load the selected connections. Token columns are only readable by the
+  // service role, so this is scoped explicitly to the signed-in user.
   const validIds = platformIds.filter(isPlatformId)
-  const { data: connections } = await supabase
+  const { data: connections } = await createAdminClient()
     .from('social_connections')
     .select('*')
+    .eq('user_id', user.id)
     .eq('status', 'active')
     .in('platform', validIds)
 
@@ -102,11 +105,15 @@ export async function publishPost(
     }
 
     try {
-      const accessToken = decryptToken({
-        ciphertext: conn.access_token_enc ?? '',
-        nonce: conn.token_nonce ?? '',
-        tag: conn.token_tag ?? '',
-      })
+      const accessToken = decryptToken(
+        {
+          ciphertext: conn.access_token_enc ?? '',
+          nonce: conn.token_nonce ?? '',
+          tag: conn.token_tag ?? '',
+          version: conn.enc_version ?? 0,
+        },
+        socialTokenAad(user.id, platform, conn.platform_user_id ?? null)
+      )
 
       const connection: PlatformConnection = {
         id: conn.id,
