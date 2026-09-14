@@ -12,7 +12,9 @@ import type {
   MediaKind,
   PlatformId,
 } from '@/lib/platforms/types'
+import type { EntitlementSummary } from '@/lib/ai/entitlement'
 import { publishPost, type PublishOutcome } from './actions'
+import { Generator } from './Generator'
 
 type LocalAsset = MediaAsset & { file: File; previewUrl: string }
 
@@ -75,8 +77,10 @@ function mediaTypeOf(assets: LocalAsset[]): MediaKind {
 
 export function Composer({
   connectedPlatforms,
+  entitlement,
 }: {
   connectedPlatforms: PlatformId[]
+  entitlement: EntitlementSummary
 }) {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -102,13 +106,16 @@ export function Composer({
     return m
   }, [draft, connectedPlatforms])
 
-  async function onFiles(list: FileList | null) {
-    if (!list) return
-    const inspected = await Promise.all(Array.from(list).map(inspectFile))
+  async function addFiles(files: File[]) {
+    const inspected = await Promise.all(files.map(inspectFile))
     setAssets((prev) => [
       ...prev,
       ...inspected.filter((a): a is LocalAsset => a !== null),
     ])
+  }
+
+  function onFiles(list: FileList | null) {
+    if (list) void addFiles(Array.from(list))
   }
 
   function removeAsset(i: number) {
@@ -202,6 +209,14 @@ export function Composer({
         placeholder="What do you want to share?"
         rows={4}
         className="w-full rounded-xl border border-black/10 dark:border-white/15 bg-transparent p-3 text-base outline-none focus:border-blue-500 resize-none"
+      />
+
+      {/* AI generation → feeds the same asset/caption state as manual input */}
+      <Generator
+        entitlement={entitlement}
+        targetPlatforms={selectedList}
+        onImage={(file) => void addFiles([file])}
+        onCaption={setCaption}
       />
 
       {/* Media */}

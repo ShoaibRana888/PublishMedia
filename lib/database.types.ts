@@ -134,19 +134,178 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_key_preference: string
           created_at: string
           email: string | null
+          free_sample_used_at: string | null
           id: string
         }
         Insert: {
+          ai_key_preference?: string
           created_at?: string
           email?: string | null
+          free_sample_used_at?: string | null
           id: string
         }
         Update: {
+          ai_key_preference?: string
           created_at?: string
           email?: string | null
+          free_sample_used_at?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      ai_provider_keys: {
+        Row: {
+          created_at: string
+          enc_version: number
+          id: string
+          key_enc: string
+          key_hint: string | null
+          key_nonce: string
+          key_tag: string
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enc_version?: number
+          id?: string
+          key_enc: string
+          key_hint?: string | null
+          key_nonce: string
+          key_tag: string
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enc_version?: number
+          id?: string
+          key_enc?: string
+          key_hint?: string | null
+          key_nonce?: string
+          key_tag?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      generations: {
+        Row: {
+          caption_text: string | null
+          created_at: string
+          error_message: string | null
+          expires_at: string
+          height: number | null
+          id: string
+          kind: string
+          mime_type: string | null
+          model: string
+          prompt: string
+          provider: string
+          size_bytes: number | null
+          status: string
+          storage_path: string | null
+          used_app_key: boolean
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          caption_text?: string | null
+          created_at?: string
+          error_message?: string | null
+          expires_at?: string
+          height?: number | null
+          id?: string
+          kind: string
+          mime_type?: string | null
+          model: string
+          prompt: string
+          provider: string
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          used_app_key?: boolean
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          caption_text?: string | null
+          created_at?: string
+          error_message?: string | null
+          expires_at?: string
+          height?: number | null
+          id?: string
+          kind?: string
+          mime_type?: string | null
+          model?: string
+          prompt?: string
+          provider?: string
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          used_app_key?: boolean
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cancel_at: string | null
+          current_period_end: string | null
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
+          price_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          current_period_end?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          price_id?: string | null
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at?: string | null
+          current_period_end?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
+          price_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paddle_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          occurred_at: string | null
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          occurred_at?: string | null
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          occurred_at?: string | null
+          received_at?: string
         }
         Relationships: []
       }
@@ -179,6 +338,7 @@ export type Database = {
           access_token_enc: string | null
           account_label: string | null
           created_at: string
+          enc_version: number
           expires_at: string | null
           id: string
           metadata: Json
@@ -195,6 +355,7 @@ export type Database = {
           access_token_enc?: string | null
           account_label?: string | null
           created_at?: string
+          enc_version?: number
           expires_at?: string | null
           id?: string
           metadata?: Json
@@ -211,6 +372,7 @@ export type Database = {
           access_token_enc?: string | null
           account_label?: string | null
           created_at?: string
+          enc_version?: number
           expires_at?: string | null
           id?: string
           metadata?: Json

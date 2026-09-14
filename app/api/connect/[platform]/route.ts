@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { encryptToken } from '@/lib/crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { encryptToken, socialTokenAad } from '@/lib/crypto'
+import { assertPublicHttpsOrigin } from '@/lib/net/safe-url'
 import { isPlatformId, PLATFORMS } from '@/lib/platforms/registry'
 
 type Ctx = { params: Promise<{ platform: string }> }
@@ -40,9 +42,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     let metadata: Record<string, unknown> = {}
 
     if (platform === 'mastodon') {
-      const instance = normalizeInstance(body.instance)
       const token = body.accessToken?.trim()
-      if (!instance || !token) throw new Error('Instance and access token required')
+      if (!body.instance || !token) throw new Error('Instance and access token required')
+      // SSRF guard: the server is about to fetch a user-supplied host.
+      const instance = await assertPublicHttpsOrigin(body.instance)
       const verify = await fetch(`${instance}/api/v1/accounts/verify_credentials`, {
         headers: { authorization: `Bearer ${token}` },
       })
@@ -75,38 +78,31 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       )
     }
 
-    const enc = encryptToken(secret)
-    const { error } = await supabase.from('social_connections').upsert(
-      {
-        user_id: user.id,
-        platform,
-        platform_user_id: platformUserId,
-        account_label: accountLabel,
-        access_token_enc: enc.ciphertext,
-        token_nonce: enc.nonce,
-        token_tag: enc.tag,
-        status: 'active',
-        metadata,
-      },
-      { onConflict: 'user_id,platform,platform_user_id' }
-    )
+    // Token columns aren't writable by the browser role; write via service
+    // role, scoped to the authenticated user and AAD-bound to this row.
+    const enc = encryptToken(secret, socialTokenAad(user.id, platform, platformUserId))
+    const { error } = await createAdminClient()
+      .from('social_connections')
+      .upsert(
+        {
+          user_id: user.id,
+          platform,
+          platform_user_id: platformUserId,
+          account_label: accountLabel,
+          access_token_enc: enc.ciphertext,
+          token_nonce: enc.nonce,
+          token_tag: enc.tag,
+          enc_version: enc.version,
+          status: 'active',
+          metadata,
+        },
+        { onConflict: 'user_id,platform,platform_user_id' }
+      )
     if (error) throw new Error(error.message)
 
     return NextResponse.json({ ok: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Connection failed'
     return NextResponse.json({ error: msg }, { status: 400 })
-  }
-}
-
-function normalizeInstance(raw: string | undefined): string | null {
-  if (!raw) return null
-  let v = raw.trim()
-  if (!/^https?:\/\//.test(v)) v = `https://${v}`
-  try {
-    const u = new URL(v)
-    return `${u.protocol}//${u.host}`
-  } catch {
-    return null
   }
 }
